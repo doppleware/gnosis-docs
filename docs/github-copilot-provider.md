@@ -259,3 +259,38 @@ The VS Code plugin drives `gnosis install --only sign-in` (JetBrains) and
 resulting state from `gnosis install --status` (`knowledgebase.llm_provider` /
 `llm_auth_method` / `jetbrains_session`). The persisted `llm_provider` setting is honoured by every
 command it spawns.
+
+## The GitHub CLI and D-Bus (headless Linux)
+
+`gh` stores and reads its login through zalando/go-keyring, which talks to the Secret Service over
+godbus. On a host with **no D-Bus session bus** — `DBUS_SESSION_BUS_ADDRESS` unset and no
+`/run/user/<uid>/bus` (a service account over SSH, a container, a `tmux` session that outlived the login)
+— godbus runs a plain `dbus-launch` to make one, and the `dbus-daemon --session` it forks is never
+reaped: it outlives `gh`, is re-parented to PID 1 and holds an inotify instance. `gh` reaches the keyring
+on every lookup that finds no token in the environment or `hosts.yml` (a `gh` that is not signed in, or
+one signed in with secure storage), so a daemon asking `gh auth token` every minute leaks one process per
+minute. 2026-10-28: three gnosis watchers on a headless Ubuntu box accumulated 8,403 of them in two days,
+exhausted `fs.inotify.max_user_instances` and VS Code failed with "Too many open files (os error 24)". The
+leak needs `dbus-launch` on PATH (package `dbus-x11`).
+
+What gnosis does about it:
+
+- Every `gh` spawn goes through `gh_cli.run_gh`. On Linux with no session bus it sets
+  `DBUS_SESSION_BUS_ADDRESS=disabled:` for the child: godbus fails to connect at once, `gh` falls back to
+  its config file exactly as it does when the keyring is empty, and nothing is started. A host that has a
+  bus is left alone, so a working keyring keeps working.
+- The `gh auth token` answer (step 5 of `resolve_github_token`) is memoised for 5 minutes, the negative
+  answer too, so neither the watcher's 60 s credential probe nor per-request token resolution spawns `gh`
+  more than once per window. The setup step always asks afresh.
+- A failed `gh pr view` in the worktree-group status is cached for 5 minutes.
+- Daemons an older build left behind are recognisable without any gnosis state (they inherited
+  `GNOSIS_WATCH_PIDFILE`): every managed watcher reaps them on its housekeeping tick, and
+  `gnosis status report` states `leaked-dbus-daemons` with the repair `reap-dbus-daemons`.
+
+On the host, the same can be avoided outright with `gh auth login --insecure-storage`, `GH_TOKEN`, or by
+storing the Copilot credential in gnosis (`gnosis install --only llm --llm copilot`) so the chain never
+reaches `gh`. To clean up by hand:
+
+```bash
+pkill -u "$USER" -f 'dbus-daemon --syslog --fork --print-pid 4 --print-address 6 --session'
+```

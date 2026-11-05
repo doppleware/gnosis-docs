@@ -188,7 +188,7 @@ Only gnosis's own entries are touched.
 |---|---|
 | `permissions.allow`: `Bash(gnosis knowledge:*)` and the full-path form | Otherwise Claude Code asks you to approve the lookup the prompt just told the agent to run, every time. |
 | `sandbox.excludedCommands`: `gnosis`, `jbcontext`, `embark-call-graph` | Claude Code's Bash sandbox blocks the socket `jbcontext` authenticates through, which turned every code search into a silent failure. Inert until you turn the sandbox on. |
-| `--hooks` only: three `air-gnosis-*.sh` hook registrations | See "Knowledge gates" below. |
+| `--hooks` / `--hooks-mode warn\|deny` only: three `air-gnosis-*.sh` hook registrations | See "Knowledge gates" below. |
 
 ### The trust flag
 
@@ -196,14 +196,25 @@ The project is marked trusted in `~/.claude.json`. Headless runs of Claude Code 
 trust dialog, and an untrusted project ignores `settings.local.json`, which would disable
 everything above. This is the one write outside the repository that `--remove` leaves in place.
 
-### Knowledge gates (off by default)
+### Knowledge gates (`warn` by default from Air, off from the bare CLI)
 
-`gnosis instrument --hooks` adds three scripts that remind the agent of the knowledge base on
-every prompt, deny broad searches and the first edit of existing code until a lookup has run,
-and track that state. The Air setting that would pass `--hooks` is off. Agents follow the
-prompt without being forced: nearly every session in the live store this week ran its lookup
-first, and a denied tool costs a turn. With the gates on, the knowledge skill gains a paragraph
-describing them.
+`gnosis instrument --hooks-mode warn|deny` (`--hooks` = `warn`) adds three scripts that remind
+the agent of the knowledge base on every prompt and track two gates: a **discovery gate** (one
+semantic code search — `gnosis knowledge search-code`, `jbcontext search` — plus a read before
+grep/find/`git log`; the decision lookup `gnosis knowledge search` does not count, it is run by
+every task anyway) and an **edit gate** (one real `gnosis knowledge` lookup before the first edit
+of existing code). In `warn` mode nothing is ever blocked: the first gated call of a prompt is
+allowed and carries a one-line tip the agent reads; in `deny` mode the call is refused with that
+tip as the reason, capped per prompt so the agent is never trapped. The Air setting
+`air.gnosisHooks.mode` passes the mode (default `warn`; `off` removes the hooks).
+
+The gates are **local to the repository you instrumented**: they live only in that repo's
+`.claude/settings.local.json` (never in `~/.claude`, whatever Air's install scope), and the
+scripts fail open for anything outside it — a session whose cwd is another repository, a
+`cd` elsewhere, a path argument outside. A linked git worktree of the instrumented repository
+counts as inside, because the code index covers it. The mode is recorded per project and
+replayed by every later bare run; with the gates on, the knowledge skill gains a paragraph
+describing them and their mode.
 
 ### A warning when the team starts tracking one of these files
 
