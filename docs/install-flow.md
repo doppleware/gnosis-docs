@@ -167,6 +167,26 @@ re-run `gnosis install --only llm`). Without the pin a healthcheck for "Anthropi
 the wire credential and proved nothing about the key just stored (2026-10-01: a cancelled Copilot
 sign-in read as working).
 
+## Call-graph on GPU-less Linux (torch, disk, failure record)
+
+embark-call-graph pulls torch through sentence-transformers, and PyPI's Linux torch is the CUDA
+build (several GiB of `nvidia-*` wheels). Every call-graph install (the bundled script, Windows,
+`--update`, the socksio migration) therefore runs with three guards (`codeintel/callgraph_prereqs.py`):
+
+- **CPU-only torch.** Linux with no NVIDIA driver (`/proc/driver/nvidia`, `/dev/nvidia0`,
+  `nvidia-smi`) installs with `UV_TORCH_BACKEND=cpu`, so uv takes torch from PyTorch's CPU index
+  and no `nvidia-*` package. A `UV_TORCH_BACKEND` you set yourself wins. macOS and Windows add nothing.
+- **Disk precheck.** Before uv runs, the free space under uv's cache (`UV_CACHE_DIR`, else
+  `~/.cache/uv`) and tool dir is checked: about 3 GiB for the CPU build, 11 GiB for CUDA, summed
+  when both share a disk. Too little fails the step with the numbers and paths.
+  `GNOSIS_CALL_GRAPH_SKIP_DISK_CHECK=1` skips it.
+- **Failure record.** A failed install that leaves no call-graph writes
+  `$GNOSIS_HOME/call-graph-install.json` `{at, kind, reason}`; a successful one removes it. The
+  reason is the root cause (`No space left on device`, a missing C compiler), not the script's
+  generic `uv tool install failed.`. `install --status` carries it as
+  `components.call-graph.last_install_failure`, and `status report` words its `not-installed`
+  issue from it (`layer` = `disk-full | no-compiler | timeout | blocked | installer`).
+
 ## Call-graph credential
 
 The call-graph daemon summarizes code with an LLM too. After the llm step's healthcheck passes (or
@@ -322,7 +342,7 @@ exclusions) — `gnosis instrument --remove` per project does; the plugin re-ins
 
 `EMBARK_CALL_GRAPH_BIN` (env) or `gnosis config set-call-graph-bin PATH|default` (`settings.call_graph_bin`;
 `settings.configured_call_graph_bin()` is the one resolver every spawn site reads: `commands/install.py`,
-`commands/knowledge/external.py`, `capabilities.py`) names a call-graph build under test. While pinned,
+`codeintel/external.py`, `capabilities.py`) names a call-graph build under test. While pinned,
 `gnosis install` never installs, upgrades or reinstalls call-graph (any flag) — it only ensures the pinned
 binary's daemon is running, and an unresolvable pin is an error rather than a silent fall-back to the
 Grazie build. `--remove` leaves it in place. A running watch daemon keeps the binary it started with

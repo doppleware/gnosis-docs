@@ -275,7 +275,7 @@ leak needs `dbus-launch` on PATH (package `dbus-x11`).
 
 What gnosis does about it:
 
-- Every `gh` spawn goes through `gh_cli.run_gh`. On Linux with no session bus it sets
+- Every `gh` spawn goes through `gitio.gh.run_gh`. On Linux with no session bus it sets
   `DBUS_SESSION_BUS_ADDRESS=disabled:` for the child: godbus fails to connect at once, `gh` falls back to
   its config file exactly as it does when the keyring is empty, and nothing is started. A host that has a
   bus is left alone, so a working keyring keeps working.
