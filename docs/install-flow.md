@@ -10,7 +10,7 @@
 `gnosis install` is the one setup command: it signs you in, installs the external CLIs and
 picks the LLM that runs trajectory analysis. There is **no `gnosis login` command** any more
 (removed 2026-09-30); its behaviour lives in the `sign-in` and `llm` steps below. Code:
-`src/commands/install.py` (orchestration + components), `src/commands/llm_setup.py` (the two
+`src/setup/install.py` (orchestration + components), `src/setup/llm_setup.py` (the two
 account steps + `gnosis logout`), `src/commands/cli/install.py` (flags).
 
 ```
@@ -41,7 +41,7 @@ flags came in. Without `--only` the default set is everything except `status-ui`
 | `--only sign-in\|jbcontext\|chatter\|call-graph\|status-ui\|cursor-cli\|llm` | — | Run only these (repeatable). |
 | `--update`, `--force` | components (+ cursor-cli via the llm step) | Upgrade installed ones / reinstall from scratch. |
 | `--status` | — | Read-only JSON, installs nothing; rejects every flag below. |
-| `--remove` | — | Tear-down (`commands/install_remove.py`): stops every watcher, clears every credential + the LLM choice (`logout --all` + `jbcontext logout`), uninstalls the components through their own channels in the order `llm → sign-in → cursor-cli (only when named) → status-ui → call-graph → chatter → jbcontext`. `--only` narrows it. A pinned call-graph binary, gnosis itself, settings pins and the data stay. Rejects every other flag. |
+| `--remove` | — | Tear-down (`setup/install_remove.py`): stops every watcher, clears every credential + the LLM choice (`logout --all` + `jbcontext logout`), uninstalls the components through their own channels in the order `llm → sign-in → cursor-cli (only when named) → status-ui → call-graph → chatter → jbcontext`. `--only` narrows it. A pinned call-graph binary, gnosis itself, settings pins and the data stay. Rejects every other flag. |
 | `--remove-data` | — | Deletes every store and cache: the conversation DB (+ WAL/SHM/backups), `$GNOSIS_HOME/{llm-cache,projects,watch,experiments,shared_storage_cache,review-rules}`, `~/.cache/gnosis`, `~/.embark-call-graph`, `~/.jbcontext/cache`. Stops the watchers and the call-graph daemon first. Combinable with `--remove`; takes no `--only`. |
 | `--yes` / `-y` | remove | Skip the terminal confirmation (a non-TTY run — the plugin — never prompts). |
 | `--jetbrains-token JWT` | sign-in | Store this JWT instead of signing in interactively (validated with one refresh round trip). |
@@ -254,7 +254,7 @@ exactly one of:
     `selection_kind` = `workspace | license | null`.
   - `instrumentation` — one row per `--status --project DIR` (repeatable; a multi-root IDE workspace
     passes one per folder; default = the enclosing repo): `{project, requested, instrumented,
-    complete, missing, surfaces, watcher}` from `commands.instrument.instrumentation_state` —
+    complete, missing, surfaces, watcher}` from `setup.instrument.api.instrumentation_state` —
     read-only, follows instrument's linked-worktree redirect (`requested` = the folder asked about
     when it redirected to the main checkout). `surfaces` = every project surface `gnosis instrument`
     writes: `search_skill`, `knowledge_skill`, `claude_md`, `agents_md`, `permissions`,
@@ -304,7 +304,7 @@ first-run wizard. Each prints exactly one document on stdout and takes no other 
 
 ## Tearing down: `--remove` / `--remove-data`
 
-The reverse of the default set (`commands/install_remove.py`); both halves combine, both stop every
+The reverse of the default set (`setup/install_remove.py`); both halves combine, both stop every
 watch daemon first, both confirm in a terminal unless `--yes` (a non-TTY run — the plugin behind its
 own modal — never prompts). Same `── name ──` / `✓ name:` / `✗ name:` protocol with two extra targets,
 `watch` and `data`; a failing target is reported and the rest continues; exit non-zero names the
@@ -341,7 +341,7 @@ exclusions) — `gnosis instrument --remove` per project does; the plugin re-ins
 ## Pinned call-graph binary
 
 `EMBARK_CALL_GRAPH_BIN` (env) or `gnosis config set-call-graph-bin PATH|default` (`settings.call_graph_bin`;
-`settings.configured_call_graph_bin()` is the one resolver every spawn site reads: `commands/install.py`,
+`settings.configured_call_graph_bin()` is the one resolver every spawn site reads: `setup/install.py`,
 `codeintel/external.py`, `capabilities.py`) names a call-graph build under test. While pinned,
 `gnosis install` never installs, upgrades or reinstalls call-graph (any flag) — it only ensures the pinned
 binary's daemon is running, and an unresolvable pin is an error rather than a silent fall-back to the

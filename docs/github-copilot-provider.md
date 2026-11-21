@@ -235,7 +235,7 @@ reliably support. The recipe's `gpt-4o` is superseded in Copilot by `gpt-4.1`, t
 | `src/llm/config.py` | `LLMConfig.copilot*` presets and the tier routing of the Anthropic presets. |
 | `src/llm/client.py` | `_build_llm` copilot branch; `has_llm_auth(provider)`. |
 | `src/llm/invoke.py` | `_try_session_refresh(config)`: re-mint-and-replay for copilot. |
-| `src/commands/llm_setup.py` (`github_setup`), `src/commands/cli/install.py`, `src/commands/cli/logout.py` | `gnosis install --only llm --llm copilot`, `gnosis logout --github`. |
+| `src/setup/llm_setup.py` (`github_setup`), `src/commands/cli/install.py`, `src/commands/cli/logout.py` | `gnosis install --only llm --llm copilot`, `gnosis logout --github`. |
 | `src/commands/cli/config.py` | `gnosis config set-provider / set-copilot-model / show`. |
 | `src/settings.py` | `llm_provider`, `copilot_model`, `copilot_main_model`. |
 | `tests/test_copilot_provider.py` | The whole path with stubbed network. |

@@ -4,7 +4,7 @@
 
 Audience: someone who wants gnosis's trajectory analysis to run on a Cursor plan, or who needs to
 debug/extend that path. Code: `src/llm/cursor_auth.py` (binary, credentials, install),
-`src/llm/cursor_chat.py` (the chat model), set-up in `src/commands/llm_setup.py`.
+`src/llm/cursor_chat.py` (the chat model), set-up in `src/setup/llm_setup.py`.
 
 ## One command
 
@@ -85,7 +85,7 @@ login cache, and the number of running `agent` processes. It is written to
 
 ## `gnosis install --llm-diagnostics [--repair] [--with-healthcheck]`
 
-One JSON document for every provider (`commands/auth_diagnostics.py`): the LLM credential, the
+One JSON document for every provider (`status/auth_diagnostics.py`): the LLM credential, the
 call-graph credential and daemon, and every watch daemon's auth gate, with `problems[]` that
 each carry a typed `remedy` a host can run (`gnosis` argv, `cursor-api-key` with a `{key}`
 placeholder, or `pick-provider`). `--repair` pushes a missing or stale call-graph credential
